@@ -103,7 +103,7 @@ if __name__ == "__main__":
     store = MilvusStore(
         embedding_function=embedding_model,
         collection_name="camel_agent",
-        uri="http://localhost:19530",
+        url="http://localhost:19530",
     )
     ids = store.add_documents(all_chunks)
     print(f"写入 Milvus {len(ids)} 条")

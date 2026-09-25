@@ -1,10 +1,14 @@
 from pathlib import Path
+from urllib.parse import quote
+
 from minio import Minio
 
 class MinioClient:
     def __init__(self, endpoint: str, access_key: str, secret_key: str, secure: bool = False):
+        self.endpoint = endpoint
+        self.secure = secure
         self.client = Minio(
-            endpoint,
+            self.endpoint,
             access_key=access_key,
             secret_key=secret_key,
             secure=secure,
@@ -130,3 +134,17 @@ class MinioClient:
         return downloaded_files
 
     
+    def get_minio_url(self, bucket_name: str, object_name: str) -> str:
+        """
+        获取 MinIO 存储桶中的对象 URL
+
+        Args:
+            bucket_name: 存储桶名称
+            object_name: 存储桶中的对象名称
+
+        Returns:
+            str: MinIO 对象 URL，如 http://127.0.0.1:9000/bucket/object.md
+        """
+        scheme = "https" if self.secure else "http"
+        encoded_object_name = quote(object_name, safe="/")
+        return f"{scheme}://{self.endpoint}/{bucket_name}/{encoded_object_name}"
