@@ -71,3 +71,9 @@ class Parser:
         return self.get_loader().lazy_load()
 
 
+# TODO: 实现Markdown 文件解析器 使用MinerU进行解析
+class MarkdownParser(Parser):
+    """
+    Markdown 文件解析器
+    """
+    
