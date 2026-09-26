@@ -1,8 +1,8 @@
 import asyncio
 
-from camel_agent.components.store import AMilvusClient
-from camel_agent.components.embedding import EmbeddingModel
-from camel_agent.components.rerank import RerankModel
+from camel_agent.rag_components.store import AMilvusClient
+from camel_agent.rag_components.embedding import EmbeddingModel
+from camel_agent.rag_components.rerank import RerankModel
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.documents import Document
 from pymilvus import AnnSearchRequest, RRFRanker

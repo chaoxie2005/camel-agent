@@ -8,7 +8,7 @@ from pathlib import Path
 import dotenv
 import requests
 
-from camel_agent.components.minio import MinioClient
+from camel_agent.rag_components.minio import MinioClient
 
 dotenv.load_dotenv()
 
