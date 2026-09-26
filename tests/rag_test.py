@@ -3,12 +3,12 @@ import os
 import dotenv
 
 
-from camel_agent.toolkits.rag_search import rag_search
-from camel_agent.components.retriever import MilvusRetriever
-from camel_agent.components.rerank import RerankModel
+from camel_agent.agent_components.toolkits.rag_search import rag_search
+from camel_agent.rag_components.retriever import MilvusRetriever
+from camel_agent.rag_components.rerank import RerankModel
 from langchain_core.documents import Document
-from camel_agent.components.store import AMilvusClient
-from camel_agent.components.embedding import EmbeddingModel
+from camel_agent.rag_components.store import AMilvusClient
+from camel_agent.rag_components.embedding import EmbeddingModel
 
 dotenv.load_dotenv()
 
