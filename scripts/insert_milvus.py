@@ -1,7 +1,10 @@
 """
 文档解析 文档切分 文档向量化 插入 Milvus 数据库 脚本
 """
-from typing import List
+import asyncio
+import uuid
+from typing import Any, List
+from datetime import datetime, timezone
 from pathlib import Path
 import os
 import dotenv
@@ -10,7 +13,7 @@ from langchain_core.documents import Document
 from camel_agent.components.parser import Parser
 from camel_agent.components.chunk import ParentChildChunker, MarkdownChunkSplitter
 from camel_agent.components.embedding import EmbeddingModel
-from camel_agent.components.store import MilvusStore
+from camel_agent.components.store import AMilvusClient
 from camel_agent.components.minio import MinioClient
 
 dotenv.load_dotenv()
@@ -79,7 +82,7 @@ def flatten_chunks(chunked_results) -> List[Document]:
     return docs
 
 
-if __name__ == "__main__":
+async def main():
     minio_client = MinioClient(
         endpoint="127.0.0.1:9000",
         access_key="minioadmin",
@@ -100,10 +103,43 @@ if __name__ == "__main__":
         chunked_documents = chunk_documents(documents)
         all_chunks.extend(flatten_chunks(chunked_documents))
 
-    store = MilvusStore(
-        embedding_function=embedding_model,
-        collection_name="camel_agent",
-        url="http://localhost:19530",
+    client = AMilvusClient(url="http://localhost:19530")
+    collection_name = "camel_agent"
+
+    embeddings = embedding_model.embed_documents(
+        [doc.page_content for doc in all_chunks]
     )
-    ids = store.add_documents(all_chunks)
-    print(f"写入 Milvus {len(ids)} 条")
+    rows = []
+    for doc, embedding in zip(all_chunks, embeddings):
+        meta = doc.metadata
+        file_name = meta.get("file_name", "")
+        rows.append(
+            {
+                "child_chunk_id": meta.get("child_id") or str(uuid.uuid4()),
+                "parent_chunk_id": meta.get("parent_id", ""),
+                "language": meta.get("language"),
+                "child_content": doc.page_content,
+                "child_metadata": meta,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "file_type": Path(file_name).suffix.lstrip(".") or None,
+                "child_minio_url": meta.get("source_url"),
+                "dense_vector": embedding,
+            }
+        )
+
+    try:
+        if not await client.has_collection(collection_name):
+            await client.create_collection(
+                collection_name=collection_name,
+                dim=len(embeddings[0]),
+            )
+        result = await client.insert_entity(
+            collection_name=collection_name, data=rows
+        )
+        print(f"写入 Milvus {result.get('insert_count', len(rows))} 条")
+    finally:
+        await client.close()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

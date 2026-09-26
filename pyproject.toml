@@ -9,13 +9,15 @@ dependencies = [
     "langchain>=1.4.2",
     "langchain-community>=0.4.2",
     "langchain-experimental>=0.4.2",
-    "langchain-milvus>=0.4.0",
+    "langchain-milvus>=0.3.3,<0.4.0",
     "langchain-openai>=1.6.2",
     "langchain-text-splitters>=1.1.2",
     "minio>=7.2.20",
     "pypdf>=6.19.0",
     "camel-ai>=0.2.90",
     "requests>=2.34.2",
+    "pymilvus>=2.6.0,<3.0.0",
+    "logger>=1.4",
 ]
 
 [project.scripts]
