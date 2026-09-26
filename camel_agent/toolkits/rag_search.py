@@ -11,4 +11,4 @@ def rag_search(
     """
     RAG 搜索
     """
-    return retriever._get_relevant_documents(query)
+    return retriever.invoke(query)

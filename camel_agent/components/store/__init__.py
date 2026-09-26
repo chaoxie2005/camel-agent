@@ -1,3 +1,3 @@
-from camel_agent.components.store.milvus_store import MilvusStore
+from camel_agent.components.store.milvus_client import AMilvusClient
 
-__all__ = ["MilvusStore"]
+__all__ = ["AMilvusClient"]

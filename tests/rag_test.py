@@ -5,8 +5,9 @@ import dotenv
 
 from camel_agent.toolkits.rag_search import rag_search
 from camel_agent.components.retriever import MilvusRetriever
+from camel_agent.components.rerank import RerankModel
 from langchain_core.documents import Document
-from camel_agent.components.store import MilvusStore
+from camel_agent.components.store import AMilvusClient
 from camel_agent.components.embedding import EmbeddingModel
 
 dotenv.load_dotenv()
@@ -21,14 +22,21 @@ def test_rag_search(query: str) -> List[Document]:
         base_url=os.getenv("BASE_URL"),
         key=os.getenv("MODEL_API_KEY"),
     )
-    milvus_store = MilvusStore(
-        embedding_function=embedding,
-        collection_name="camel_agent",
+    rerank = RerankModel(
+        model_name=os.getenv("RERANK_MODEL_NAME"),
+        base_url=os.getenv("BASE_URL"),
+        key=os.getenv("MODEL_API_KEY"),
+        endpoint=os.getenv("RERANK_BASE_URL"),
+    )
+    client = AMilvusClient(
         url="http://localhost:19530",
     )
     retriever = MilvusRetriever(
-        milvus_store=milvus_store,
-        score_threshold=0.3
+        client=client,
+        embedding_function=embedding,
+        rerank_function=rerank,
+        collection_name="camel_agent",
+        score_threshold=0.3,
     )
     return retriever._get_relevant_documents(query)
 
