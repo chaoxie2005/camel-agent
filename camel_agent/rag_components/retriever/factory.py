@@ -3,7 +3,7 @@ import os
 from camel_agent.rag_components.embedding import EmbeddingModel
 from camel_agent.rag_components.rerank import RerankModel
 from camel_agent.rag_components.retriever.retriever import MilvusRetriever
-from camel_agent.rag_components.store import AMilvusClient
+from camel_agent.rag_components.milvus import AMilvusClient
 
 
 def build_retriever_from_env(

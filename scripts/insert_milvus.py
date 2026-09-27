@@ -13,7 +13,7 @@ from langchain_core.documents import Document
 from camel_agent.rag_components.parser import Parser
 from camel_agent.rag_components.chunk import ParentChildChunker, MarkdownChunkSplitter
 from camel_agent.rag_components.embedding import EmbeddingModel
-from camel_agent.rag_components.store import AMilvusClient
+from camel_agent.rag_components.milvus import AMilvusClient
 from camel_agent.rag_components.minio import MinioClient
 
 dotenv.load_dotenv()
