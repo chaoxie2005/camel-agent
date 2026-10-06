@@ -3,8 +3,9 @@ from typing import Optional, Union, List, Callable, Type
 from camel.agents import ChatAgent
 from camel_agent.agent_components.llm.model import ModelClient
 from camel.messages import BaseMessage
-from camel.memories import AgentMemory
+from camel.memories import AgentMemory, MemoryRecord
 from camel.toolkits import FunctionTool
+from camel.types import OpenAIBackendRole
 from pydantic import BaseModel
 
 
@@ -23,6 +24,25 @@ class ChatAgentClient:
     ):
         self.model_client = model_client
 
+        # ChatAgent.__init__ → init_messages() → clear_memory()
+        # 会无条件清空 memory（chat_agent.py:2413），持久化历史会丢失。
+        # 先快照非 SYSTEM 的历史记录（LongtermAgentMemory.retrieve 会把
+        # 向量召回结果夹在中间，需按 timestamp 排回时间序、按 uuid 去重），
+        # 待 Agent 初始化清空后再写回。
+        saved_records: List[MemoryRecord] = []
+        if memory is not None:
+            seen: set = set()
+            for context_record in memory.retrieve():
+                record = context_record.memory_record
+                if (
+                    record.uuid in seen
+                    or record.role_at_backend == OpenAIBackendRole.SYSTEM
+                ):
+                    continue
+                seen.add(record.uuid)
+                saved_records.append(record)
+            saved_records.sort(key=lambda r: r.timestamp)
+
         self.agent = ChatAgent(
             model=self.model_client.model,
             system_message=system_prompt,
@@ -32,6 +52,10 @@ class ChatAgentClient:
             output_language=output_language,
             tools=tools,
         )
+
+        if saved_records:
+            # Agent 初始化（清空+写 system）后，恢复历史对话
+            self.agent.memory.write_records(saved_records)
 
     async def run_chat(
     self,

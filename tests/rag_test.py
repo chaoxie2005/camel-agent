@@ -18,14 +18,14 @@ def test_rag_search(query: str) -> List[Document]:
     测试RAG搜索
     """
     embedding = EmbeddingModel(
-        model_name=os.getenv("MODEL_NAME"),
-        base_url=os.getenv("BASE_URL"),
-        key=os.getenv("MODEL_API_KEY"),
+        model_name=os.getenv("MODEL_NAME"),  # type: ignore
+        base_url=os.getenv("BASE_URL"),  # type: ignore
+        key=os.getenv("MODEL_API_KEY"),  # type: ignore
     )
     rerank = RerankModel(
-        model_name=os.getenv("RERANK_MODEL_NAME"),
-        base_url=os.getenv("BASE_URL"),
-        key=os.getenv("MODEL_API_KEY"),
+        model_name=os.getenv("RERANK_MODEL_NAME"),  # type: ignore
+        base_url=os.getenv("BASE_URL"),  # type: ignore
+        key=os.getenv("MODEL_API_KEY"),  # type: ignore
         endpoint=os.getenv("RERANK_BASE_URL"),
     )
     client = AMilvusClient(

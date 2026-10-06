@@ -13,7 +13,7 @@ def build_retriever_from_env(
 ) -> MilvusRetriever:
     """从 .env 配置构造 MilvusRetriever"""
     embedding = EmbeddingModel(
-        model_name=os.getenv("MODEL_NAME"),  # type: ignore
+        model_name=os.getenv("MODEL_EMBEDDING_NAME"),  # type: ignore
         base_url=os.getenv("BASE_URL"),  # type: ignore
         key=os.getenv("MODEL_API_KEY"),  # type: ignore
     )
@@ -25,7 +25,7 @@ def build_retriever_from_env(
     )
     client = AMilvusClient(url=milvus_url)
     return MilvusRetriever(
-        client=client,
+        client=client, 
         embedding_function=embedding,
         rerank_function=rerank,
         collection_name=collection_name,
