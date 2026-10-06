@@ -13,11 +13,11 @@ class EmbeddingModel(Embeddings):
         self.embedding = OpenAIEmbeddings(
             model=model_name,
             base_url=self.base_url,
-            api_key=self.key,
+            api_key=self.key,  # type: ignore
             check_embedding_ctx_length=False,
         )
 
-    def embed_query(self, query: str) -> list[float]:
+    def embed_query(self, query: str) -> list[float]:  # type: ignore
         """
         对查询进行嵌入
         """
@@ -35,7 +35,7 @@ class EmbeddingModel(Embeddings):
             all_embeddings.extend(self.embedding.embed_documents(batch))
         return all_embeddings
 
-    async def aembed_query(self, query: str) -> list[float]:
+    async def aembed_query(self, query: str) -> list[float]:  # type: ignore
         """
         对查询进行异步嵌入
         """

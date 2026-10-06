@@ -20,9 +20,9 @@ dotenv.load_dotenv()
 
 
 embedding_model = EmbeddingModel(
-    model_name=os.getenv("MODEL_NAME"),
-    base_url=os.getenv("BASE_URL"),
-    key=os.getenv("MODEL_API_KEY"),
+    model_name=os.getenv("MODEL_NAME"),  # type: ignore
+    base_url=os.getenv("BASE_URL"),  # type: ignore
+    key=os.getenv("MODEL_API_KEY"),  # type: ignore
 )
 
 
