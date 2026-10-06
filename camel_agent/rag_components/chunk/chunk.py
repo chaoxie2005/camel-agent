@@ -5,13 +5,35 @@ import uuid
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
+from langchain_core.embeddings import Embeddings
+
+from .types import ParentChildChunks
+
+
+def _semantic_splitter(embedding_model: Embeddings, min_size: int, threshold: float) -> SemanticChunker:
+    return SemanticChunker(
+        embeddings=embedding_model,
+        breakpoint_threshold_type="percentile",
+        breakpoint_threshold_amount=threshold,
+        min_chunk_size=min_size,
+        sentence_split_regex=r"(?<=[。！？；：.!?;:])",
+    )
+
+
+def _recursive_splitter(size: int, overlap_rate: float) -> RecursiveCharacterTextSplitter:
+    return RecursiveCharacterTextSplitter(
+        separators=["\n\n", "\n", "。", "！", "？", "；", ".", "!", "?", ";", "，", ",", " ", ""],
+        chunk_size=size,
+        chunk_overlap=int(size * overlap_rate),
+        length_function=len,
+    )
 
 
 class ParentChildChunker:
     """父子文档切分器"""
     def __init__(
         self,
-        embedding_model,
+        embedding_model: Embeddings,
         parent_chunk_size: int = 2000,
         parent_min_chunk_size: int = 500,
         child_chunk_size: int = 800,
@@ -29,70 +51,18 @@ class ParentChildChunker:
         self.chunk_overlap_rate = chunk_overlap_rate # 文本切分重叠率
 
         # 1. 父块语义切分器
-        self.parent_semantic_splitter = SemanticChunker(
-            embeddings=self.embedding_model,
-            breakpoint_threshold_type="percentile",
-            breakpoint_threshold_amount=6.0,
-            min_chunk_size=self.parent_min_chunk_size,
-            sentence_split_regex=r"(?<=[。！？；：.!?;:])",
-        )
+        self.parent_semantic_splitter = _semantic_splitter(self.embedding_model, self.parent_min_chunk_size, 6.0)
 
         # 2. 子块语义切分器
-        self.child_semantic_splitter = SemanticChunker(
-            embeddings=self.embedding_model,
-            breakpoint_threshold_type="percentile",
-            breakpoint_threshold_amount=3.0,
-            min_chunk_size=self.child_min_chunk_size,
-            sentence_split_regex=r"(?<=[。！？；：.!?;:])",
-        )
+        self.child_semantic_splitter = _semantic_splitter(self.embedding_model, self.child_min_chunk_size, 3.0)
 
         # 3. 父块过大时使用的兜底切分器
-        self.parent_recursive_splitter = RecursiveCharacterTextSplitter(
-            separators=[
-                "\n\n",
-                "\n",
-                "。",
-                "！",
-                "？",
-                "；",
-                ".",
-                "!",
-                "?",
-                ";",
-                "，",
-                ",",
-                " ",
-                "",
-            ],
-            chunk_size=self.parent_chunk_size,
-            chunk_overlap=int(self.parent_chunk_size * chunk_overlap_rate),
-            length_function=len,
-        )
+        self.parent_recursive_splitter = _recursive_splitter(self.parent_chunk_size, chunk_overlap_rate)
 
         # 4. 子块过大时使用的兜底切分器
-        self.child_recursive_splitter = RecursiveCharacterTextSplitter(
-            separators=[
-                "\n\n",
-                "\n",
-                "。",
-                "！",
-                "？",
-                "；",
-                ".",
-                "!",
-                "?",
-                ";",
-                "，",
-                ",",
-                " ",
-                "",
-            ],
-            chunk_size=self.child_chunk_size,
-            chunk_overlap=int(self.child_chunk_size * chunk_overlap_rate),
-            length_function=len,
-        )
+        self.child_recursive_splitter = _recursive_splitter(self.child_chunk_size, chunk_overlap_rate)
 
-    def split_text(self, text: Document, metadata: dict[str, Any] | None = None) -> List[dict[str, Any]]:
+    def split_text(self, text: Document, metadata: dict[str, Any] | None = None) -> list[ParentChildChunks]:
         """
         对文档进行父子切分, 适用于解析成普通文本文档， 先按语义切分，再按字符切分
 
@@ -139,7 +109,7 @@ class ParentChildChunker:
                 parent_docs.append(parent_doc)
 
         # 第二层：Parent → Child
-        results = []
+        results: list[ParentChildChunks] = []
 
         for parent_doc in parent_docs:
 
@@ -189,7 +159,7 @@ class MarkdownChunkSplitter:
 
     def __init__(
         self,
-        embedding_model,
+        embedding_model: Embeddings,
         parent_chunk_size: int = 2000,
         parent_min_chunk_size: int = 500,
         child_chunk_size: int = 800,
@@ -214,68 +184,16 @@ class MarkdownChunkSplitter:
         )
 
         # 2. 父块语义切分器
-        self.parent_semantic_splitter = SemanticChunker(
-            embeddings=self.embedding_model,
-            breakpoint_threshold_type="percentile",
-            breakpoint_threshold_amount=6.0,
-            min_chunk_size=self.parent_min_chunk_size,
-            sentence_split_regex=r"(?<=[。！？；：.!?;:])",
-        )
+        self.parent_semantic_splitter = _semantic_splitter(self.embedding_model, self.parent_min_chunk_size, 6.0)
 
         # 3. 父块过大时的兜底切分器
-        self.parent_recursive_splitter = RecursiveCharacterTextSplitter(
-            separators=[
-                "\n\n",
-                "\n",
-                "。",
-                "！",
-                "？",
-                "；",
-                ".",
-                "!",
-                "?",
-                ";",
-                "，",
-                ",",
-                " ",
-                "",
-            ],
-            chunk_size=self.parent_chunk_size,
-            chunk_overlap=int(self.parent_chunk_size * chunk_overlap_rate),
-            length_function=len,
-        )
+        self.parent_recursive_splitter = _recursive_splitter(self.parent_chunk_size, chunk_overlap_rate)
 
         # 4. 子块语义切分器
-        self.child_semantic_splitter = SemanticChunker(
-            embeddings=self.embedding_model,
-            breakpoint_threshold_type="percentile",
-            breakpoint_threshold_amount=3.0,
-            min_chunk_size=self.child_min_chunk_size,
-            sentence_split_regex=r"(?<=[。！？；：.!?;:])",
-        )
+        self.child_semantic_splitter = _semantic_splitter(self.embedding_model, self.child_min_chunk_size, 3.0)
 
         # 5. 子块超长兜底切分器
-        self.child_recursive_splitter = RecursiveCharacterTextSplitter(
-            separators=[
-                "\n\n",
-                "\n",
-                "。",
-                "！",
-                "？",
-                "；",
-                ".",
-                "!",
-                "?",
-                ";",
-                "，",
-                ",",
-                " ",
-                "",
-            ],
-            chunk_size=self.child_chunk_size,
-            chunk_overlap=int(self.child_chunk_size * chunk_overlap_rate),
-            length_function=len,
-        )
+        self.child_recursive_splitter = _recursive_splitter(self.child_chunk_size, chunk_overlap_rate)
 
     def _split_children(self, content: str) -> list[str]:
         """
@@ -323,7 +241,7 @@ class MarkdownChunkSplitter:
 
     def split_text(
         self, text: Document, metadata: dict[str, Any] | None = None
-    ) -> List[dict[str, Any]]:
+    ) -> list[ParentChildChunks]:
         """
         对 Markdown 文档进行父子切分，先按三级标题切分父块，超长父块语义切分，
         父块内部语义切分子块，超长递归兜底, 最后 尽可能 合并过小分块。
@@ -376,7 +294,7 @@ class MarkdownChunkSplitter:
                     parent_docs.append(semantic_doc)
 
         # 第二层：Parent → Child
-        results: list[dict[str, Any]] = []  # 切分结果列表
+        results: list[ParentChildChunks] = []  # 切分结果列表
 
         for parent_doc in parent_docs:  # 遍历单个父块
             parent_id = str(uuid.uuid4())  # 父块唯一 ID

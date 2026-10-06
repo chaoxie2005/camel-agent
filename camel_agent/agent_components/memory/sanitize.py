@@ -7,6 +7,17 @@ REASONING_KEY = "reasoning_content"
 
 
 def _tool_call_id(tool_call: Dict[str, Any]) -> Any:
+    """读取工具调用的唯一标识。
+
+    兼容 OpenAI 工具调用使用的 ``id`` 字段，以及部分消息结构使用的
+    ``tool_call_id`` 字段。当两个字段同时存在时优先返回 ``id``。
+
+    Args:
+        tool_call: 工具调用数据。
+
+    Returns:
+        工具调用标识；两个字段都不存在或值为空时返回 ``None``。
+    """
     return tool_call.get("id") or tool_call.get("tool_call_id")
 
 
@@ -15,11 +26,17 @@ def sanitize_openai_messages(
 ) -> List[OpenAIMessage]:
     """去除重复消息，并修复 assistant(tool_calls) 与 tool 结果的配对。
 
-    1. 按 (role, content, tool_calls, tool_call_id) 去重（向量召回会注入
-       与聊天历史重复的记录）；
-    2. 删除 tool_call_id 无对应 assistant tool_calls 的孤儿 tool 消息；
-    3. assistant(tool_calls) 中无 tool 结果响应的调用项被剥离；若全部被
-       剥离且无文本内容，则整条丢弃；否则保留文本/剩余调用项。
+    处理过程包括：按角色、内容和工具调用信息去重；删除没有对应
+    assistant 工具调用的孤立 tool/function 消息；移除没有结果响应的
+    assistant 工具调用。对于 DeepSeek assistant 历史消息，还会在缺失时
+    补充空的 ``reasoning_content`` 字段。
+
+    Args:
+        messages: 待清洗的 OpenAI 格式消息列表。函数不会修改传入列表，
+            但返回结果中未被修补的消息可能仍与输入引用同一字典对象。
+
+    Returns:
+        去重并修复工具调用配对后的消息列表，保持保留消息的原始顺序。
     """
     # ---- 1. 去重 ----
     seen: set = set()
@@ -91,6 +108,19 @@ class SanitizingContextCreator(ScoreBasedContextCreator):
     def create_context(
         self, records: List
     ) -> Tuple[List[OpenAIMessage], int]:
+        """创建上下文并在发送给模型前清洗消息。
+
+        先使用父类的评分和 token 限制生成上下文，再清理重复消息及无效
+        工具调用关系。如果清洗改变了消息数量，则重新计算 token 数量。
+
+        Args:
+            records: 用于构建上下文的记忆记录列表，具体记录格式遵循
+                ``ScoreBasedContextCreator.create_context`` 的要求。
+
+        Returns:
+            一个二元组，第一项是清洗后的 OpenAI 格式消息列表，第二项是
+            对应的 token 数量。
+        """
         messages, tokens = super().create_context(records)
         cleaned = sanitize_openai_messages(messages)
         if len(cleaned) != len(messages):

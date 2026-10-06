@@ -3,27 +3,20 @@
 """
 import asyncio
 import uuid
-from typing import Any, List
+from typing import List
 from datetime import datetime, timezone
 from pathlib import Path
-import os
 import dotenv
 
 from langchain_core.documents import Document
 from camel_agent.rag_components.parser import Parser
-from camel_agent.rag_components.chunk import ParentChildChunker, MarkdownChunkSplitter
+from camel_agent.rag_components.chunk import ParentChildChunks, MarkdownChunkSplitter
 from camel_agent.rag_components.embedding import EmbeddingModel
+from camel_agent.rag_components.retriever.factory import build_embedding_from_env
 from camel_agent.rag_components.milvus import AMilvusClient
 from camel_agent.rag_components.minio import MinioClient
 
-dotenv.load_dotenv()
 
-
-embedding_model = EmbeddingModel(
-    model_name=os.getenv("MODEL_NAME"),  # type: ignore
-    base_url=os.getenv("BASE_URL"),  # type: ignore
-    key=os.getenv("MODEL_API_KEY"),  # type: ignore
-)
 
 
 def load_documents(file_path) -> List[Document]:
@@ -40,29 +33,30 @@ def load_documents(file_path) -> List[Document]:
     return paser.parse()
 
 
-def chunk_documents(documents: List[Document], chunk_size: int = 1000, chunk_overlap: int = 100):
+def chunk_documents(
+    documents: List[Document], embedding_model: EmbeddingModel
+) -> list[ParentChildChunks]:
     """
     切分Markdown文档并存入 Milvus 数据库
     
     Args:
         documents: 文档列表
-        chunk_size: 切分块大小
-        chunk_overlap: 切分块重叠大小
+        embedding_model: 切分使用的向量模型
         
     Returns:
-        List[Document]: 切分后的文档列表
+        list[ParentChildChunks]: 父子块列表
     """
     chunker = MarkdownChunkSplitter(
         embedding_model=embedding_model,
     )
-    results = []
+    results: list[ParentChildChunks] = []
     for document in documents:
         parent_child_documents = chunker.split_text(document)
         results.extend(parent_child_documents)
     return results
 
 
-def flatten_chunks(chunked_results) -> List[Document]:
+def flatten_chunks(chunked_results: list[ParentChildChunks]) -> List[Document]:
     """
     将父子块结果展平为子块 Document 列表，父块内容写入 metadata["parent_content"]
     只有子块 page_content 会被向量化
@@ -83,6 +77,8 @@ def flatten_chunks(chunked_results) -> List[Document]:
 
 
 async def main():
+    dotenv.load_dotenv()
+    embedding_model = build_embedding_from_env()
     minio_client = MinioClient(
         endpoint="127.0.0.1:9000",
         access_key="minioadmin",
@@ -100,7 +96,7 @@ async def main():
         object_name = file_path.relative_to(download_dir).as_posix()
         for document in documents:
             document.metadata["source_url"] = f"http://127.0.0.1:9000/{bucket_name}/{object_name}"
-        chunked_documents = chunk_documents(documents)
+        chunked_documents = chunk_documents(documents, embedding_model)
         all_chunks.extend(flatten_chunks(chunked_documents))
 
     client = AMilvusClient(url="http://localhost:19530")

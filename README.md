@@ -61,7 +61,7 @@ uv sync
 
 | 变量 | 说明 |
 | --- | --- |
-| `MODEL_NAME` | Embedding 向量模型名 |
+| `MODEL_EMBEDDING_NAME` | Embedding 向量模型名；兼容旧变量 `MODEL_NAME`，新变量优先 |
 | `BASE_URL` | 向量/重排模型服务地址 |
 | `MODEL_API_KEY` | 向量/重排模型 API Key |
 | `RERANK_MODEL_NAME` | 重排模型名 |
@@ -124,3 +124,21 @@ Agent 会根据用户问题自主决定是否调用 `rag_search` 工具检索知
 ## License
 
 暂未提供。
+
+## 模块接口与本地验证
+
+- 检索器同步入口为 `retriever.invoke(query)`，异步入口为 `await retriever.ainvoke(query)`。
+  同步查询使用独立、按需创建的 Milvus 连接；使用完后调用 `await retriever.client.close()` 释放连接。
+- `make_rag_search_tool()` 接收 LangChain `BaseRetriever`，生成异步 CAMEL 工具。
+  原 `rag_search()` 转发函数已移除，直接使用检索器公开入口即可。
+- 入库和检索通过 `build_embedding_from_env()` 共用向量模型配置。
+- 切分结果使用 `ParentChildChunks` 类型，保留 `item["parent"]` 和 `item["children"]` 的访问方式。
+- 异步重排通过线程运行现有同步 HTTP 请求，共用请求与响应解析逻辑。
+
+无需真实数据库或模型服务的回归测试：
+
+```bash
+uv run python -m unittest discover -s tests -p test_retriever.py -v
+```
+
+`tests/agent_test.py` 和 `tests/rag_test.py` 仍是需要真实服务的手动验证脚本。

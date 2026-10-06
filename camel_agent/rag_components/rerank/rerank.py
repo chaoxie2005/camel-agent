@@ -1,3 +1,5 @@
+import asyncio
+
 import requests
 
 
@@ -13,6 +15,12 @@ class RerankModel:
         self.base_url = base_url.rstrip("/")
         self.key = key
         self.endpoint = endpoint.rstrip("/") if endpoint else None
+
+    async def arerank(
+        self, query: str, documents: list[str], top_n: int
+    ) -> list[tuple[int, float]]:
+        """在线程中执行同步 HTTP 请求，避免阻塞 Agent 事件循环。"""
+        return await asyncio.to_thread(self.rerank, query, documents, top_n)
 
     def rerank(
         self, query: str, documents: list[str], top_n: int

@@ -3,6 +3,7 @@ from typing import Optional, List, Union
 from pymilvus import (
     AnnSearchRequest,
     AsyncMilvusClient,
+    MilvusClient,
     CollectionSchema,
     DataType,
     FieldSchema,
@@ -140,6 +141,11 @@ class AMilvusClient:
         token: str = "",
         timeout: Optional[float] = None,
     ):
+        self._connection_options = dict(
+            uri=url, user=user, password=password, db_name=db_name,
+            token=token, timeout=timeout,
+        )
+        self._sync_client = None
         self.client = AsyncMilvusClient(
             uri=url,
             user=user,
@@ -147,6 +153,24 @@ class AMilvusClient:
             db_name=db_name,
             token=token,
             timeout=timeout,
+        )
+
+    def _get_sync_client(self) -> MilvusClient:
+        """仅在同步检索时建立同步连接。"""
+        if self._sync_client is None:
+            self._sync_client = MilvusClient(**self._connection_options)
+        return self._sync_client
+
+    def vector_search_sync(self, *, query: list[float], top_k: int = 10, **kwargs):
+        """同步向量查询，参数与异步入口一致。"""
+        return self._get_sync_client().search(
+            data=[query], limit=top_k, anns_field="dense_vector", **kwargs
+        )
+
+    def hybrid_search_sync(self, *, requests, top_k: int = 10, **kwargs):
+        """同步混合查询，参数与异步入口一致。"""
+        return self._get_sync_client().hybrid_search(
+            reqs=requests, limit=top_k, **kwargs
         )
 
     async def has_collection(
@@ -337,5 +361,10 @@ class AMilvusClient:
 
     async def close(self) -> None:
         r"""关闭 Milvus 连接"""
-        await self.client.close()
+        try:
+            await self.client.close()
+        finally:
+            if self._sync_client is not None:
+                self._sync_client.close()
+                self._sync_client = None
         logger.info("Milvus 连接已关闭")

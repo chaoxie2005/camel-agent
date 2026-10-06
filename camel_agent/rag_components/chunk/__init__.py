@@ -1,3 +1,5 @@
 from camel_agent.rag_components.chunk.chunk import MarkdownChunkSplitter, ParentChildChunker
 
-__all__ = ["MarkdownChunkSplitter", "ParentChildChunker"]
+from .types import ParentChildChunks
+
+__all__ = ["MarkdownChunkSplitter", "ParentChildChunker", "ParentChildChunks"]

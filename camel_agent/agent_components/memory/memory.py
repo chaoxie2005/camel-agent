@@ -1,4 +1,5 @@
 import os
+from typing import Self
 
 import dotenv
 from camel.embeddings import OpenAICompatibleEmbedding
@@ -149,4 +150,3 @@ class MongoMilvusMemory(LongtermAgentMemory):
         """
         super().clear()
         self.milvus_db.load()
-
